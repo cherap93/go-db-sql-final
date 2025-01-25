@@ -8,28 +8,33 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// константы статуса доставки
 const (
 	ParcelStatusRegistered = "registered"
 	ParcelStatusSent       = "sent"
 	ParcelStatusDelivered  = "delivered"
 )
 
+// тип "посылка"
 type Parcel struct {
-	Number    int
-	Client    int
-	Status    string
-	Address   string
-	CreatedAt string
+	Number    int    // номер
+	Client    int    // клиент
+	Status    string // статус (один из констант)
+	Address   string // адрес
+	CreatedAt string // дата создания
 }
 
+// структура для работы с логикой ParcelStore
 type ParcelService struct {
 	store ParcelStore
 }
 
+// создание экземпляра структуры ParcelService
 func NewParcelService(store ParcelStore) ParcelService {
 	return ParcelService{store: store}
 }
 
+// метод создает посылку, ставит статус "зарегистрирована" и добавляет ее в БД. Использует store.Add()
 func (s ParcelService) Register(client int, address string) (Parcel, error) {
 	parcel := Parcel{
 		Client:    client,
@@ -51,6 +56,7 @@ func (s ParcelService) Register(client int, address string) (Parcel, error) {
 	return parcel, nil
 }
 
+// метод для печати всех посылок клиента. Использует store.GetByClient()
 func (s ParcelService) PrintClientParcels(client int) error {
 	parcels, err := s.store.GetByClient(client)
 	if err != nil {
@@ -67,7 +73,9 @@ func (s ParcelService) PrintClientParcels(client int) error {
 	return nil
 }
 
+// метод для смены статуса отправки посылки, использует store.Get() и store.SetStatus()
 func (s ParcelService) NextStatus(number int) error {
+	// сперва получаем посылку из БД по номеру
 	parcel, err := s.store.Get(number)
 	if err != nil {
 		return err
@@ -85,24 +93,34 @@ func (s ParcelService) NextStatus(number int) error {
 
 	fmt.Printf("У посылки № %d новый статус: %s\n", number, nextStatus)
 
+	// сам статус меняется здесь
 	return s.store.SetStatus(number, nextStatus)
 }
 
+// метод для смены адреса, использует store.SetAdress()
 func (s ParcelService) ChangeAddress(number int, address string) error {
 	return s.store.SetAddress(number, address)
 }
 
+// метод удаляет посылку из БД по номеру. Использует store.Delete()
 func (s ParcelService) Delete(number int) error {
 	return s.store.Delete(number)
 }
 
 func main() {
-	// настройте подключение к БД
+	// подключение к БД
+	db, err := sql.Open("sqlite", "tracker.db")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer db.Close()
 
-	store := // создайте объект ParcelStore функцией NewParcelStore
+	// создаем объект ParcelStore и ParcelService
+	store := NewParcelStore(db)
 	service := NewParcelService(store)
 
-	// регистрация посылки
+	// регистрация (создание) посылки
 	client := 1
 	address := "Псков, д. Пушкина, ул. Колотушкина, д. 5"
 	p, err := service.Register(client, address)
