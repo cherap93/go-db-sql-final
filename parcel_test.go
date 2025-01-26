@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,21 +43,27 @@ func TestAddGetDelete(t *testing.T) {
 	// add
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	id, err := store.Add(parcel)
+	parcel.Number = id
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
 
 	// get
 	// получите только что добавленную посылку, убедитесь в отсутствии ошибки
 	// проверьте, что значения всех полей в полученном объекте совпадают со значениями полей в переменной parcel
-	actParcel, err := store.Get(id)
-	require.NoError(t, err)
-	require.Equal(t, actParcel, parcel)
+	actParcel, err := store.Get(id) // надеюсь понял "тут сначала parcel.Number будет обновить иначе после исправления метода Get"
+	assert.NoError(t, err)
+	assert.Equal(t, actParcel, parcel)
 
 	// delete
 	// удалите добавленную посылку, убедитесь в отсутствии ошибки
-	// проверьте, что посылку больше нельзя получить из БД
 	err = store.Delete(id)
-	require.NoError(t, err)
+	assert.NoError(t, err)
+
+	// проверьте, что посылку больше нельзя получить из БД
+	actParcel, err = store.Get(id)
+	assert.Error(t, err)
+	assert.Empty(t, actParcel)
+	// require.NotEqual(t, actParcel, parcel)
 }
 
 // TestSetAddress проверяет обновление адреса
@@ -79,13 +86,13 @@ func TestSetAddress(t *testing.T) {
 	// обновите адрес, убедитесь в отсутствии ошибки
 	newAddress := "new test address"
 	err = store.SetAddress(id, newAddress)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// check
 	// получите добавленную посылку и убедитесь, что адрес обновился
 	actParcel, err := store.Get(id)
-	require.NoError(t, err)
-	require.Equal(t, actParcel.Address, newAddress)
+	assert.NoError(t, err)
+	assert.Equal(t, actParcel.Address, newAddress)
 }
 
 // TestSetStatus проверяет обновление статуса
@@ -108,13 +115,13 @@ func TestSetStatus(t *testing.T) {
 	// обновите статус, убедитесь в отсутствии ошибки
 	newStatus := ParcelStatusSent
 	err = store.SetStatus(id, newStatus)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// check
 	// получите добавленную посылку и убедитесь, что статус обновился
 	actParcel, err := store.Get(id)
-	require.NoError(t, err)
-	require.Equal(t, actParcel.Status, newStatus)
+	assert.NoError(t, err)
+	assert.Equal(t, actParcel.Status, newStatus)
 }
 
 // TestGetByClient проверяет получение посылок по идентификатору клиента
@@ -156,8 +163,8 @@ func TestGetByClient(t *testing.T) {
 
 	// get by client
 	storedParcels, err := store.GetByClient(client) // получите список посылок по идентификатору клиента, сохранённого в переменной client
-	require.NoError(t, err)
-	require.Equal(t, len(storedParcels), len(parcels))
+	assert.NoError(t, err)
+	assert.Len(t, storedParcels, len(parcels))
 	// убедитесь в отсутствии ошибки
 	// убедитесь, что количество полученных посылок совпадает с количеством добавленных
 
@@ -168,11 +175,8 @@ func TestGetByClient(t *testing.T) {
 		// убедитесь, что значения полей полученных посылок заполнены верно
 		id := parcel.Number
 		_, ok := parcelMap[id]
-		require.True(t, ok)
+		assert.True(t, ok)
 
-		require.Equal(t, parcel.Client, parcelMap[id].Client)
-		require.Equal(t, parcel.Status, parcelMap[id].Status)
-		require.Equal(t, parcel.Address, parcelMap[id].Address)
-		require.Equal(t, parcel.CreatedAt, parcelMap[id].CreatedAt)
+		assert.Equal(t, parcel, parcelMap[id])
 	}
 }

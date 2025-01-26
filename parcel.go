@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 )
 
 // структуры для работы с посылками в БД
@@ -34,9 +33,9 @@ func (s ParcelStore) Add(p Parcel) (int, error) {
 // Получение одной строки из БД, возвращает структуру Parcel
 func (s ParcelStore) Get(number int) (Parcel, error) {
 	p := Parcel{}
-	row := s.db.QueryRow("SELECT client, status, address, created_at FROM parcel WHERE number = :number",
+	row := s.db.QueryRow("SELECT number, client, status, address, created_at FROM parcel WHERE number = :number",
 		sql.Named("number", number))
-	err := row.Scan(&p.Client, &p.Status, &p.Address, &p.CreatedAt)
+	err := row.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 	if err != nil {
 		return Parcel{}, err
 	}
@@ -61,6 +60,9 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
 		res = append(res, p)
 	}
 
@@ -80,18 +82,10 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 
 // Обнолвение адреса, работает только если статус Registered
 func (s ParcelStore) SetAddress(number int, address string) error {
-	// менять адрес можно только если значение статуса registered
-	status, err := s.getStatus(number)
-	if err != nil {
-		return err
-	}
-	if status != ParcelStatusRegistered {
-		return errors.New("Parcel must be registered")
-	}
-
-	_, err = s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number",
+	_, err := s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number AND status = :status",
 		sql.Named("address", address),
-		sql.Named("number", number))
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered))
 	if err != nil {
 		return err
 	}
@@ -100,29 +94,11 @@ func (s ParcelStore) SetAddress(number int, address string) error {
 
 // Удаление строки, работает только если статус Registered
 func (s ParcelStore) Delete(number int) error {
-	// удалять строку можно только если значение статуса registered
-	status, err := s.getStatus(number)
-	if err != nil {
-		return err
-	}
-	if status != ParcelStatusRegistered {
-		return errors.New("Parcel must be registered")
-	}
-
-	_, err = s.db.Exec("DELETE FROM parcel WHERE number = :number", sql.Named("number", number))
+	_, err := s.db.Exec("DELETE FROM parcel WHERE number = :number AND status = :status",
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered))
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-// Функция возвращает статус посылки из БД
-func (s ParcelStore) getStatus(number int) (string, error) {
-	var status string
-	row := s.db.QueryRow("SELECT status FROM parcel WHERE number = :number", sql.Named("number", number))
-	err := row.Scan(&status)
-	if err != nil {
-		return "", err
-	}
-	return status, nil
 }
